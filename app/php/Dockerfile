@@ -12,58 +12,28 @@ ENV TZ=UTC \
   COMPOSER_ALLOW_SUPERUSER=1 \
   COMPOSER_HOME=/composer
 
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+ARG USER_UID=1000
 
 RUN apt-get update \
   && apt-get -y install --no-install-recommends \
-    locales \
-    git \
-    unzip \
-    libzip-dev \
-    libicu-dev \
-    libonig-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && locale-gen en_US.UTF-8 \
-  && localedef -f UTF-8 -i en_US en_US.UTF-8 \
-  && docker-php-ext-install \
-    intl \
-    pdo_mysql \
-    zip \
-    bcmath \
-  && composer config -g process-timeout 3600 \
-  && composer config -g repos.packagist composer https://packagist.org
-
-ARG USER_UID=1000
+  wget \
+  curl \
+  tar
 
 RUN \
   useradd --shell /bin/bash --user-group --create-home appuser && \
   usermod --non-unique --uid ${USER_UID} appuser && \
   groupmod --non-unique --gid ${USER_UID} appuser
   
+RUN \
+  install -o appuser -g appuser -d / && \
+  install -o appuser -g appuser -d /
+
+COPY ./app/php/php.development.ini /usr/local/etc/php/php.ini
 
 RUN \
-  install -o appuser -g appuser -d /workspace && \
-  install -o appuser -g appuser -d /workspace/vendor
-
-
-FROM base AS development
-
-COPY ./infra/docker/php/php.development.ini /usr/local/etc/php/php.ini
-
-FROM development AS development-xdebug
-
-RUN pecl install xdebug && \
-  docker-php-ext-enable xdebug
-
-COPY ./infra/docker/php/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
-
-FROM base AS deploy
-
-COPY ./infra/docker/php/php.deploy.ini /usr/local/etc/php/php.ini
-COPY ./src /workspace
-
-RUN composer install -q -n --no-ansi --no-dev --no-scripts --no-progress --prefer-dist \
-  && chmod -R 777 storage bootstrap/cache \
-  && php artisan optimize:clear \
-  && php artisan optimize
+  wget -P /tmp https://wordpress.org/wordpress-6.3.2.tar.gz \
+  tar xzvf /tmp/wordpress-6.3.2.tar.gz \
+  # chmod +x /tmp/wordpress \
+  # cp -RT /tmp/wordpress /workspace \
+  # chown -R appuser:appuser /workspace
