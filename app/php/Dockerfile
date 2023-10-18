@@ -17,7 +17,6 @@ ARG USER_UID=1000
 RUN apt-get update \
   && apt-get -y install --no-install-recommends \
   wget \
-  curl \
   tar
 
 RUN \
@@ -29,11 +28,16 @@ RUN \
   install -o appuser -g appuser -d / && \
   install -o appuser -g appuser -d /
 
+USER root
+RUN \
+  chown -R appuser:appuser /workspace
+
 COPY ./app/php/php.development.ini /usr/local/etc/php/php.ini
+
+USER appuser 
 
 RUN \
   wget -P /tmp https://wordpress.org/wordpress-6.3.2.tar.gz \
-  tar xzvf /tmp/wordpress-6.3.2.tar.gz \
-  # chmod +x /tmp/wordpress \
-  # cp -RT /tmp/wordpress /workspace \
-  # chown -R appuser:appuser /workspace
+  && tar -xzvf /tmp/wordpress-6.3.2.tar.gz \
+  # && chmod -R +x ./wordpress \
+  # && chown -R appuser:appuser ./wordpress \
