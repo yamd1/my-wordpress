@@ -5,15 +5,22 @@ services:
       - type: bind
         source: ./src/wp-content/
         target: /var/www/html/wp-content
-      - wp-data:/var/www/html
-    ports:
-      - "${HOST_IP:-127.0.0.1}:9000:9000"
+      - type: volume
+        source: wp-data
+        target: /var/www/html
     environment:
       WORDPRESS_DB_HOST: ${DB_HOST:-db}
-      WORDPRESS_DB_PORT: ${DB_PORT:-3306}
-      WORDPRESS_DB_DATABASE: ${DB_DATABASE:-wordpress}
-      WORDPRESS_DB_USERNAME: ${DB_USERNAME:-admin}
+      WORDPRESS_DB_NAME: ${DB_DATABASE:-wordpress}
+      WORDPRESS_DB_USER: ${DB_USERNAME:-admin}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD:-secret}
+      WORDPRESS_AUTH_KEY: ${WORDPRESS_AUTH_KEY:?}
+      WORDPRESS_SECURE_AUTH_KEY: ${WORDPRESS_SECURE_AUTH_KEY:?}
+      WORDPRESS_LOGGED_IN_KEY: ${WORDPRESS_LOGGED_IN_KEY:?}
+      WORDPRESS_NONCE_KEY: ${WORDPRESS_NONCE_KEY:?}
+      WORDPRESS_AUTH_SALT: ${WORDPRESS_AUTH_SALT:?}
+      WORDPRESS_SECURE_AUTH_SALT: ${WORDPRESS_SECURE_AUTH_SALT:?}
+      WORDPRESS_LOGGED_IN_SALT: ${WORDPRESS_LOGGED_IN_SALT:?}
+      WORDPRESS_NONCE_SALT: ${WORDPRESS_NONCE_SALT:?}
     depends_on:
       db:
         condition: service_healthy
@@ -24,32 +31,41 @@ services:
       - "${HOST_IP:-127.0.0.1}:80:80"
     volumes:
       - type: bind
+        source: ./infra/nginx/nginx.conf
+        target: /etc/nginx/nginx.conf
+      - type: bind
+        source: ./infra/nginx/global
+        target: /etc/nginx/global
+      - type: bind
         source: ./src
-        target: /workspace
-      - wp-data:/var/www/html
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'plug', '-uroot', '-p${DB_ROOT_PASSWORD:-root}']
-      interval: 5s
-      timeout: 1s
-      retries: 5
+        target: /var/www/html/wp-content/
+      - type: volume
+        source: wp-data
+        target: /var/www/html
     depends_on:
       - app
 
   db:
-    build:
-      dockerfile: ./infra/db/Dockerfile
+    image: mysql:8
     ports:
       - "${HOST_IP:-127.0.0.1}:3306:3306"
     volumes:
       - type: volume
         source: db-store
         target: /var/lib/mysql
-      - ./infra/db/my.conf:/etc/mysql/conf.d/my.conf
+      - type: bind
+        source: ./infra/db/my.cnf
+        target: /etc/mysql/conf.d/my.cnf
     environment:
-      - MYSQL_DATABASE=${DB_DATABASE:-laravel}
-      - MYSQL_USER=${DB_USERNAME:-phper}
+      - MYSQL_DATABASE=${DB_DATABASE:-wordpress}
+      - MYSQL_USER=${DB_USERNAME:-admin}
       - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-secret}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root}
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-uroot', '-p${DB_ROOT_PASSWORD:-root}']
+      interval: 5s
+      timeout: 1s
+      retries: 5
 
 volumes:
   db-store:
