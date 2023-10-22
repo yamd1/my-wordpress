@@ -56,6 +56,9 @@ services:
       - type: bind
         source: ./infra/db/my.cnf
         target: /etc/mysql/conf.d/my.cnf
+      - type: bind
+        source: ./infra/db/dump-wordpress.sql
+        target: /docker-entrypoint-initdb.d/dump-wordpress.sql
     environment:
       - MYSQL_DATABASE=${DB_DATABASE:-wordpress}
       - MYSQL_USER=${DB_USERNAME:-admin}
